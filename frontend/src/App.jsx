@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { FileText, Sparkles, Upload, Copy, Download, LoaderCircle, RotateCcw, CheckCircle2 } from 'lucide-react'
+import { FileText, Sparkles, Upload, Copy, Download, LoaderCircle, RotateCcw, CheckCircle2, X } from 'lucide-react'
 
 const API = 'http://127.0.0.1:8000/api'
 const sampleText = `Information retrieval is the process of finding relevant information from a large collection of documents in response to a user's query. Modern information retrieval systems use techniques such as document indexing, tokenization, ranking, and relevance scoring to organize and retrieve useful information. Natural language processing has expanded these systems by enabling applications to analyze and generate human language. Text summarization is one such application. Extractive summarization selects important sentences from the source document, while abstractive summarization generates a shorter version using newly constructed sentences. Transformer-based neural networks have significantly improved abstractive summarization because they can model relationships between words and longer passages. However, generated summaries can omit important facts or produce unsupported statements, so their quality should be evaluated and important details checked against the source.`
@@ -14,9 +14,11 @@ export default function App() {
   const [summary, setSummary] = useState('')
   const [stats, setStats] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [progress, setProgress] = useState(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const fileRef = useRef(null)
+  const controllerRef = useRef(null)
 
   async function generateSummary() {
     setError('')
@@ -28,21 +30,69 @@ export default function App() {
       return
     }
     setBusy(true)
+    setProgress({ completed: 0, total: 0, message: 'Connecting to the local summarizer...' })
+    const controller = new AbortController()
+    controllerRef.current = controller
     try {
-      const response = await fetch(`${API}/summarize`, {
+      const response = await fetch(`${API}/summarize/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, length }),
+        signal: controller.signal,
       })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.detail || 'Could not generate a summary.')
-      setSummary(data.summary)
-      setStats(data)
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.detail || 'Could not generate a summary.')
+      }
+      if (!response.body) throw new Error('This browser could not read the progress stream.')
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let receivedResult = false
+      const handleLine = (line) => {
+        if (!line.trim()) return
+        const event = JSON.parse(line)
+        if (event.type === 'status') {
+          setProgress({ completed: 0, total: 0, message: event.message })
+        } else if (event.type === 'progress') {
+          setProgress(event)
+        } else if (event.type === 'result') {
+          setSummary(event.summary)
+          setStats(event)
+          receivedResult = true
+        } else if (event.type === 'error') {
+          throw new Error(event.detail || 'Could not generate a summary.')
+        }
+      }
+
+      while (true) {
+        const { value, done } = await reader.read()
+        buffer += decoder.decode(value || new Uint8Array(), { stream: !done })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+        lines.forEach(handleLine)
+        if (done) break
+      }
+      if (buffer.trim()) handleLine(buffer)
+      if (!receivedResult && !controller.signal.aborted) {
+        throw new Error('The backend ended the progress stream before returning a summary.')
+      }
     } catch (e) {
-      setError(e.message || 'Unable to connect to the backend. Make sure FastAPI is running on port 8000.')
+      if (e.name === 'AbortError') {
+        setNotice('Summary cancelled. The current model operation may finish before CPU processing stops.')
+      } else {
+        setError(e.message || 'Unable to connect to the backend. Make sure FastAPI is running on port 8000.')
+      }
     } finally {
+      if (controllerRef.current === controller) controllerRef.current = null
       setBusy(false)
+      setProgress(null)
     }
+  }
+
+  function cancelSummary() {
+    controllerRef.current?.abort()
   }
 
   async function uploadFile(file) {
@@ -121,13 +171,14 @@ export default function App() {
           <div className="input-toolbar">
             <span className="field-label">SOURCE TEXT</span>
             <div className="toolbar-actions">
-              <button className="text-button" onClick={() => { setText(sampleText); setSummary(''); setStats(null); setError(''); setNotice('Sample text loaded.') }}>Try sample</button>
-              <button className="text-button" onClick={reset}><RotateCcw size={13} /> Clear</button>
+              <button className="text-button" disabled={busy} onClick={() => { setText(sampleText); setSummary(''); setStats(null); setError(''); setNotice('Sample text loaded.') }}>Try sample</button>
+              <button className="text-button" disabled={busy} onClick={reset}><RotateCcw size={13} /> Clear</button>
             </div>
           </div>
           <textarea
             className="source-input"
             value={text}
+            disabled={busy}
             onChange={(e) => { setText(e.target.value); setSummary(''); setStats(null) }}
             placeholder="Paste your article, research paper, report, or notes here..."
             maxLength={30000}
@@ -139,11 +190,11 @@ export default function App() {
           </div>
 
           <input ref={fileRef} type="file" accept=".txt,.pdf,text/plain,application/pdf" hidden onChange={(e) => uploadFile(e.target.files?.[0])} />
-          <button className="upload-button" onClick={() => fileRef.current?.click()}><Upload size={16} /> Upload a TXT or PDF</button>
+          <button className="upload-button" disabled={busy} onClick={() => fileRef.current?.click()}><Upload size={16} /> Upload a TXT or PDF</button>
 
           <div className="settings-row">
             <label htmlFor="summary-length">SUMMARY LENGTH</label>
-            <select id="summary-length" value={length} onChange={(e) => setLength(e.target.value)}>
+            <select id="summary-length" value={length} disabled={busy} onChange={(e) => setLength(e.target.value)}>
               <option value="short">Short & concise</option>
               <option value="medium">Balanced</option>
               <option value="long">More detailed</option>
@@ -175,7 +226,32 @@ export default function App() {
             </div>
           )}
 
-          {busy && <div className="loading-state"><LoaderCircle className="spin" size={30} /><h3>Finding the main ideas...</h3><p>Long documents are processed in chunks. CPU summarization may take several minutes; keep this page open.</p></div>}
+          {busy && (
+            <div className="loading-state">
+              <LoaderCircle className="spin" size={30} />
+              <h3>{progress?.total ? progress.message : 'Preparing your summary...'}</h3>
+              <p>{progress?.total
+                ? `${progress.completed} of ${progress.total} sections complete. CPU inference can take time for each section.`
+                : progress?.message || 'The model may take longer to load on the first request.'}</p>
+              <div className="progress-wrap">
+                <div
+                  className={`progress-track${progress?.total ? '' : ' progress-track-indeterminate'}`}
+                  role="progressbar"
+                  aria-label="Summarization progress"
+                  aria-valuemin="0"
+                  aria-valuemax={progress?.total || 100}
+                  aria-valuenow={progress?.total ? progress.completed : undefined}
+                >
+                  <div
+                    className="progress-fill"
+                    style={{ width: progress?.total ? `${(progress.completed / progress.total) * 100}%` : undefined }}
+                  />
+                </div>
+                {progress?.total > 0 && <span>{Math.round((progress.completed / progress.total) * 100)}%</span>}
+              </div>
+              <button className="cancel-button" onClick={cancelSummary}><X size={14} /> Cancel summary</button>
+            </div>
+          )}
 
           {summary && !busy && (
             <div className="result-content">

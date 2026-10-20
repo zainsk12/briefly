@@ -78,10 +78,11 @@ The current API accepts up to 30,000 characters and the document extractor accep
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/api/health` | API/model configuration status (does not load the model) |
-| POST | `/api/summarize` | JSON `{ "text": "...", "length": "short\|medium\|long" }` |
+| POST | `/api/summarize` | JSON `{ "text": "...", "length": "short\|medium\|long" }`; returns a complete summary response |
+| POST | `/api/summarize/stream` | Same JSON request; streams newline-delimited status, section progress, and final result events for the web UI |
 | POST | `/api/extract-text` | Multipart upload field `file`; accepts `.txt` and `.pdf` |
 
-Summary responses include generated text, both word counts, compression percentage, and the model identifier. Compression is the percentage reduction in whitespace-separated word count.
+Summary responses include generated text, both word counts, compression percentage, and the model identifier. Compression is the percentage reduction in whitespace-separated word count. The streaming endpoint reports completed and total sections; cancelling the browser request stops further sections after any active model operation returns. A single CPU inference call cannot be interrupted mid-operation.
 
 ## Checks
 

@@ -4,7 +4,7 @@ Updated: 2026-10-21
 
 ## Current state
 
-The project contains a working React/Vite interface and FastAPI backend with abstractive text summarization, TXT/PDF text extraction, summary statistics, and copy/download interactions. The selected product name is **Briefly**; the GitHub repository is `https://github.com/zainsk12/briefly`. Git is initialized on `main`, and the latest observed status was clean and synchronized with `origin/main`. Frontend dependencies are installed locally. A dedicated `backend/.venv` has not been verified; create one for repeatable backend development.
+The project contains a React/Vite interface and FastAPI backend with abstractive text summarization, TXT/PDF text extraction, summary statistics, and copy/download interactions. The selected product name is **Briefly**; the GitHub repository is `https://github.com/zainsk12/briefly`. Git is initialized on `main`. Frontend dependencies are installed locally. The user created `backend/.venv` with Python 3.10 and installed the backend requirements; the six API tests passed earlier under global Python 3.10, but have not yet been rerun inside this virtual environment. Chunk-level progress has been manually confirmed by the user. Cancellation is implemented but has not yet been manually confirmed.
 
 ## Completed and verified this session
 
@@ -26,6 +26,11 @@ The project contains a working React/Vite interface and FastAPI backend with abs
 - The user reports that the model download completed and text summarization works. The first model download and CPU inference took a long time; do not treat CPU latency as a regression without measuring it.
 - Created the GitHub repository `zainsk12/briefly`, committed the project, and pushed `main` to `origin`. On 2026-10-21, `git status --short --branch` showed `main...origin/main` with no pending changes.
 - The user chose to keep the product name Briefly; no product rename is planned.
+- The user reports that choosing Balanced and Detailed produced identical summaries. The backend was updated to use distinct generation ceilings and enforced minimum output lengths for Short, Balanced, and Detailed. This code change has not yet been runtime-verified with the downloaded model.
+- Added a streaming summarization endpoint that emits section progress and the final result as newline-delimited JSON. The React UI displays section progress and offers cancellation. The user confirmed progress appears during summarization; cancellation still needs a browser check.
+- The user confirmed with real model output that Short, Balanced, and Detailed produce different summaries and word counts.
+- `backend/.venv/Scripts/python.exe -m py_compile app/main.py`: passed after the streaming endpoint change.
+- `npm run build` from `frontend` after the streaming UI change: passed (Vite 6.4.4).
 
 ## Files changed
 
@@ -33,6 +38,8 @@ The project contains a working React/Vite interface and FastAPI backend with abs
 - `backend/app/main.py` — bounded upload read and extracted-text limit.
 - `backend/tests/test_api.py` — mock-based endpoint tests.
 - `frontend/src/App.jsx` — clearer long-document CPU inference message.
+- `frontend/src/App.jsx` and `frontend/src/styles.css` — streaming progress display and cancel control.
+- `backend/app/main.py` — streaming summary endpoint and shared per-chunk generation helpers.
 - `README.md` — setup, architecture, API, IR relevance, and limitations.
 - `PROJECT_STATUS.md` — this recovery record.
 
@@ -40,7 +47,7 @@ The project contains a working React/Vite interface and FastAPI backend with abs
 
 - The user has reported a successful real summarization after the initial model download. This was not independently rerun during the 2026-10-21 repository update. CPU inference can be slow, especially for long documents.
 - The test suite mocks the model and does not establish output quality. It covers health, insufficient input, response/statistics, unsupported upload extension, and empty upload.
-- A dedicated `backend/.venv` has not been verified. The repository has Git metadata and a GitHub remote.
+- Different output-length controls for Short, Balanced, and Detailed need a real inference comparison; longer settings can take more CPU time.
 - Evaluation is not implemented: no dataset, ROUGE script, or measured results exist.
 - Chunk summaries can lose cross-chunk context. OCR, search, ranking, and an inverted index are not implemented.
 - No frontend interaction automation or live UI browser check was run; only Vite startup and production compilation were verified.
@@ -54,10 +61,10 @@ The project contains a working React/Vite interface and FastAPI backend with abs
 
 ## Remaining work, in priority order
 
-1. Create `backend/.venv`, install `backend/requirements.txt`, and rerun tests in the isolated target environment.
-2. Add tests for long inputs, all summary-length settings, malformed PDFs, file-size boundaries, model failure, and CORS preflight. Scanned PDF OCR is a separate feature and is not currently supported.
+1. Run the API checks in `backend/.venv` and manually verify streaming section progress, cancellation, and all three length settings with the downloaded model.
+2. Add tests for malformed PDFs, file-size boundaries, model failure, and CORS preflight. Scanned PDF OCR is a separate feature and is not currently supported.
 3. Add an independently reproducible ROUGE evaluation workflow with an appropriate manageable labelled dataset and measured aggregate results.
-4. Improve chunk aggregation/context handling and expose meaningful upload progress/errors.
+4. Improve chunk aggregation/context handling and add upload progress for large files.
 5. Capture final application screenshots and prepare submission/report materials after UI review.
 
 ## Resume commands (Windows PowerShell)

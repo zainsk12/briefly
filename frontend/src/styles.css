@@ -60,6 +60,13 @@ h1 span{color:#7869e9}
 .loading-state{min-height:410px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#7869e9}
 .loading-state h3{color:#282d43;margin-top:18px}
 .loading-state p{color:#9298aa}
+.progress-wrap{display:flex;align-items:center;gap:9px;width:min(300px,100%);margin:0 0 18px;color:#7770d8;font-size:10px;font-weight:700}
+.progress-track{height:7px;flex:1;overflow:hidden;border-radius:8px;background:#efedfb}
+.progress-fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,#7164e5,#a092ff);transition:width .3s ease}
+.progress-track-indeterminate .progress-fill{width:35%;animation:progress-slide 1.35s ease-in-out infinite}
+.cancel-button{display:inline-flex;align-items:center;gap:6px;padding:8px 13px;border:1px solid #e5e7f0;border-radius:8px;background:#fff;color:#73798b;font-size:11px;font-weight:600}
+.cancel-button:hover{border-color:#e9b6bd;color:#b64d59;background:#fff9fa}
+@keyframes progress-slide{0%{transform:translateX(-110%)}100%{transform:translateX(310%)}}
 .spin{animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .result-content{padding:1px 0 0}
