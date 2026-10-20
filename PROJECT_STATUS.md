@@ -1,10 +1,10 @@
 # Project Status
 
-Updated: 2026-10-20
+Updated: 2026-10-21
 
 ## Current state
 
-The repository contains a working React/Vite interface and FastAPI backend with text summarization, TXT/PDF text extraction, statistics, and copy/download interactions. Dependencies are present in `frontend/node_modules` and import successfully from the host Python 3.10 environment. There is no `backend/.venv`; create one before normal development. The opened folder is not a Git repository (`git rev-parse --show-toplevel` failed), so no commit or GitHub state could be verified.
+The project contains a working React/Vite interface and FastAPI backend with abstractive text summarization, TXT/PDF text extraction, summary statistics, and copy/download interactions. The selected product name is **Briefly**; the GitHub repository is `https://github.com/zainsk12/briefly`. Git is initialized on `main`, and the latest observed status was clean and synchronized with `origin/main`. Frontend dependencies are installed locally. A dedicated `backend/.venv` has not been verified; create one for repeatable backend development.
 
 ## Completed and verified this session
 
@@ -23,6 +23,9 @@ The repository contains a working React/Vite interface and FastAPI backend with 
 - Latest PDF summarization investigation: the 4,030-token warning came from tokenizing the full document before chunking, not from sending a 4,030-token sequence to the model. Updated `split_text` to tokenize bounded 256-character windows before packing 850-token inference chunks; updated the UI loading message to set expectations for long CPU runs.
 - `python -m unittest discover -s tests -v` after this change: 6 tests passed.
 - `npm run build` after this change: passed.
+- The user reports that the model download completed and text summarization works. The first model download and CPU inference took a long time; do not treat CPU latency as a regression without measuring it.
+- Created the GitHub repository `zainsk12/briefly`, committed the project, and pushed `main` to `origin`. On 2026-10-21, `git status --short --branch` showed `main...origin/main` with no pending changes.
+- The user chose to keep the product name Briefly; no product rename is planned.
 
 ## Files changed
 
@@ -35,9 +38,9 @@ The repository contains a working React/Vite interface and FastAPI backend with 
 
 ## Not verified / known limitations
 
-- Real transformer inference was not run. The health result confirms the model is not loaded; cache/download state and checkpoint size were not inspected. First real summary may need a large network download and CPU inference can be slow.
+- The user has reported a successful real summarization after the initial model download. This was not independently rerun during the 2026-10-21 repository update. CPU inference can be slow, especially for long documents.
 - The test suite mocks the model and does not establish output quality. It covers health, insufficient input, response/statistics, unsupported upload extension, and empty upload.
-- The project has no virtual environment and no Git metadata in the opened directory.
+- A dedicated `backend/.venv` has not been verified. The repository has Git metadata and a GitHub remote.
 - Evaluation is not implemented: no dataset, ROUGE script, or measured results exist.
 - Chunk summaries can lose cross-chunk context. OCR, search, ranking, and an inverted index are not implemented.
 - No frontend interaction automation or live UI browser check was run; only Vite startup and production compilation were verified.
@@ -51,13 +54,11 @@ The repository contains a working React/Vite interface and FastAPI backend with 
 
 ## Remaining work, in priority order
 
-1. After the in-progress model download settles, initialize Git version control, inspect staged changes, make the first commit, create a GitHub repository, and push the project. The folder currently has no `.git` metadata. Confirm GitHub CLI/authentication or use the available GitHub connection at that time; never publish secrets, model weights, `.venv`, or `node_modules`.
-2. Rename the product from “Briefly AI” / `briefly.ai` to a distinctive name after choosing one with the user; the user noted the current name is already used elsewhere.
-3. Create `backend/.venv`, install `backend/requirements.txt`, and rerun tests in the isolated target environment.
-4. Add tests for long inputs, all summary-length settings, malformed PDFs, scanned PDFs, file-size boundaries, model failure, and CORS preflight.
-5. Add an independently reproducible ROUGE evaluation workflow with an appropriate manageable labelled dataset and measured aggregate results.
-6. Improve chunk aggregation/context handling and expose meaningful upload progress/errors.
-7. Capture real application screenshots and finalize submission/report materials after UI review.
+1. Create `backend/.venv`, install `backend/requirements.txt`, and rerun tests in the isolated target environment.
+2. Add tests for long inputs, all summary-length settings, malformed PDFs, file-size boundaries, model failure, and CORS preflight. Scanned PDF OCR is a separate feature and is not currently supported.
+3. Add an independently reproducible ROUGE evaluation workflow with an appropriate manageable labelled dataset and measured aggregate results.
+4. Improve chunk aggregation/context handling and expose meaningful upload progress/errors.
+5. Capture final application screenshots and prepare submission/report materials after UI review.
 
 ## Resume commands (Windows PowerShell)
 
